@@ -10,6 +10,8 @@ extern "C" {
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
+// Q32.32 fixed point number
+typedef s64 q32;
 // Q20.12 fixed point number
 typedef s32 q20;
 // Q4.12 fixed point number

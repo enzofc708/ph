@@ -2,8 +2,6 @@
 #include "DTCM/UnkStruct_027e037c.h"
 #include "nds/gfx.h"
 
-#define G3D_SBC_CMD_MASK 0x1f
-#define G3D_SBC_FLG_MASK 0xe0
 #define GX_ST(s, t) ((u32) ((u16) (s16) (s >> 8) | ((u16) (s16) (t >> 8) << 16)))
 #define GX_PACK_TEXCOORD_PARAM(s, t) (GX_ST((s), (t)))
 

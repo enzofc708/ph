@@ -1,12 +1,16 @@
 #pragma once
 #include "g3d.h"
 
+#define G3D_SBC_CMD_MASK 0x1f
+#define G3D_SBC_FLG_MASK 0xe0
+
 extern void PushGeometryCommand(u32 command, void *data, s32 length);
 
 typedef enum {
     G3D_SBC_CMD_NOP = 0x0,
     G3D_SBC_CMD_END = 0x1,
     G3D_SBC_CMD_VIS = 0x2,
+    G3D_SBC_CMD_MTP = 0x6,
     G3D_SBC_CMD_007 = 0x7,
     G3D_SBC_CMD_008 = 0x8,
     G3D_SBC_CMD_SKN = 0x9,

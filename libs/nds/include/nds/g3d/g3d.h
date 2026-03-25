@@ -159,6 +159,40 @@ typedef struct G3d_MaterialAnimation_ {
     /* 38 */
 } G3d_MaterialAnimation;
 
+typedef struct G3d_ContainerHeader_ {
+    /* 00 */ char stamp[4];
+    /* 04 */ u16 bom;
+    /* 06 */ u16 version;
+    /* 08 */ u32 fileSize;
+    /* 0c */ u16 headerSize;
+    /* 0e */ u16 numSubfiles;
+    /* 10 */
+} G3d_ContainerHeader;
+
+typedef struct G3d_Texture_ {
+    /* 00 */ char stamp[4]; // TEX0
+    /* 04 */ u32 size;
+    /* 08 */ u32 mUnk_08;
+    /* 0c */ u16 block1LenSHR3;
+    /* 0e */ u16 ofsTex;
+    /* 10 */ u32 mUnk_10;
+    /* 14 */ u32 ofsBlock1;
+    /* 18 */ u32 mUnk_18;
+    /* 1c */ u16 block2LenSHR3;
+    /* 1e */ u16 mUnk_1e;
+    /* 20 */ u16 mUnk_20;
+    /* 22 */ u16 mUnk_22;
+    /* 24 */ u32 ofsBlock2;
+    /* 28 */ u32 ofsBlock3;
+    /* 2c */ u32 mUnk_2c;
+    /* 30 */ u16 block4LenSHR3;
+    /* 32 */ u16 mUnk_32;
+    /* 34 */ u32 ofsPltt;
+    /* 38 */ u32 ofsBlock4;
+    /* 3c */ G3d_NameList textures;
+    /* 48 */
+} G3d_Texture;
+
 #define G3D_TEXIMAGE_PARM_TEX_COORD_MODE 0xc0000000
 
 extern void *G3d_gScaleHandlers[3];
