@@ -145,7 +145,7 @@ void *Heap_AllocFreeBlock(Heap_EXPHHeader *EXPHHeader, Heap_EXPHBlockHeader *blo
     return block;
 }
 
-void *Heap_AllocHead(Heap_Header *header, u32 size, int alignment) {
+void *Heap_EXPHAllocHead(Heap_Header *header, u32 size, int alignment) {
     Heap_EXPHHeader *expHeader = GetEXPH_inline(header);
     Heap_EXPHBlockHeader *blockHeader;
     const u32 flag1 = (u16) (expHeader->flags & 1) == 0;
@@ -177,7 +177,7 @@ void *Heap_AllocHead(Heap_Header *header, u32 size, int alignment) {
     return Heap_AllocFreeBlock(expHeader, foundBlockHeader, foundBlock, size, 0);
 }
 
-void *Heap_AllocTail(Heap_Header *header, u32 size, int alignment) {
+void *Heap_EXPHAllocTail(Heap_Header *header, u32 size, int alignment) {
     Heap_EXPHHeader *expHeader = GetEXPH_inline(header);
     Heap_EXPHBlockHeader *blockHeader;
 
@@ -270,9 +270,9 @@ void *Heap_EXPHNew(Heap_Header *heap, u32 size, int alignment) {
     size = (size + 3) & ~3;
 
     if (alignment >= 0) {
-        h = Heap_AllocHead(heap, size, alignment);
+        h = Heap_EXPHAllocHead(heap, size, alignment);
     } else {
-        h = Heap_AllocTail(heap, size, -alignment);
+        h = Heap_EXPHAllocTail(heap, size, -alignment);
     }
 
     return h;
@@ -391,4 +391,186 @@ u32 Heap_EXPHGetMaxEmptySize(Heap_Header *heap, int alignment) {
         }
         return maxSize;
     }
+}
+
+static inline Heap_FRMHHeader *Get_FRMHHeader_inline(Heap_Header *header) {
+    return AddU32_inline(header, sizeof(Heap_Header));
+}
+
+Heap_Header *Heap_FRMHInit(void *startAddress, void *endAddress, u16 optFlag) {
+    Heap_Header *header        = startAddress;
+    Heap_FRMHHeader *frmHeader = (void *) header + sizeof(Heap_Header);
+
+    func_0201776c(header, 'FRMH', (void *) frmHeader + sizeof(Heap_FRMHHeader), endAddress, optFlag);
+
+    frmHeader->head  = header->startAddr;
+    frmHeader->tail  = header->endAddr;
+    frmHeader->state = NULL;
+
+    return header;
+}
+
+void *Heap_FRMHAllocHead(Heap_FRMHHeader *header, u32 size, int alignment) {
+    void *newBlock   = ((alignment - 1) + ((u32) header->head)) & ~(alignment - 1);
+    void *endAddress = AddU32_inline(newBlock, size);
+
+    if ((u32) endAddress > (u32) header->tail) {
+        return NULL;
+    }
+
+    Fill32_inline((void *) ((u32) (header) - sizeof(Heap_Header)), header->head, endAddress - header->head);
+    header->head = endAddress;
+
+    return newBlock;
+}
+
+void *Heap_FRMHAllocTail(Heap_FRMHHeader *header, u32 size, int alignment) {
+    void *newBlock = (u32) (header->tail - size) & ~(alignment - 1);
+
+    if ((u32) (newBlock) < (u32) (header->head)) {
+        return NULL;
+    }
+
+    Fill32_inline((void *) ((u32) (header) - sizeof(Heap_Header)), newBlock, header->tail - newBlock);
+    header->tail = newBlock;
+
+    return newBlock;
+}
+
+void Heap_FRMHFreeHead(Heap_Header *header) {
+    Heap_FRMHHeader *frmHeader = (u32) header + sizeof(Heap_Header);
+    frmHeader->head            = header->startAddr;
+    frmHeader->state           = NULL;
+}
+
+void Heap_FRMHFreeTail(Heap_Header *header) {
+    Heap_FRMHHeader *frmHeader = Get_FRMHHeader_inline(header);
+    Heap_FRMHState *pState;
+
+    for (pState = frmHeader->state; pState; pState = pState->prev) {
+        pState->tail = header->endAddr;
+    }
+
+    frmHeader->tail = header->endAddr;
+}
+
+Heap_Header *Heap_FRMHCreate(void *startAddress, u32 size, u16 optFlag) {
+    void *endAddress;
+    Heap_Header *header;
+
+    endAddress   = (size + (u32) startAddress) & ~3;
+    startAddress = (3 + (u32) startAddress) & ~3;
+
+    if ((u32) (startAddress) > (u32) (endAddress) ||
+        endAddress - startAddress < sizeof(Heap_Header) + sizeof(Heap_FRMHHeader)) {
+        return NULL;
+    }
+
+    header = Heap_FRMHInit(startAddress, endAddress, optFlag);
+    return header;
+}
+
+void Heap_FRMHDestroy(Heap_Header *heap) {
+    func_020177c8(heap);
+}
+
+void *Heap_FRMHNew(Heap_Header *heap, u32 size, int alignment) {
+    void *memory;
+    Heap_FRMHHeader *header;
+
+    header = (void *) heap + sizeof(Heap_Header);
+
+    if (size == 0) {
+        size = 1;
+    }
+
+    size = size + 3 & ~3;
+
+    if (alignment >= 0) {
+        memory = Heap_FRMHAllocHead(header, size, alignment);
+    } else {
+        memory = Heap_FRMHAllocTail(header, size, -alignment);
+    }
+
+    return memory;
+}
+
+void Heap_FRMHFreeBlock(Heap_Header *heap, int mode) {
+    if (mode & 1) {
+        Heap_FRMHFreeHead(heap);
+    }
+
+    if (mode & 2) {
+        Heap_FRMHFreeTail(heap);
+    }
+}
+
+u32 Heap_FRMHGetMaxEmptySize(Heap_Header *heap, int alignment) {
+    const Heap_FRMHHeader *header;
+    const void *block;
+
+    alignment = abs(alignment);
+    header    = AddU32_inline(heap, sizeof(Heap_Header));
+    block     = (alignment - 1) + (u32) header->head & ~(alignment - 1);
+
+    if ((u32) block > (u32) header->tail) {
+        return 0;
+    }
+
+    return header->tail - (u32) block;
+}
+
+u32 Heap_FRMHSaveState(Heap_Header *heap, u32 id) {
+    Heap_FRMHHeader *header = Get_FRMHHeader_inline(heap);
+    void *oldHead           = header->head;
+
+    Heap_FRMHState *state = Heap_FRMHAllocHead(header, sizeof(Heap_FRMHState), 4);
+    if (!state) {
+        return 0;
+    }
+
+    state->id     = id;
+    state->head   = oldHead;
+    state->tail   = header->tail;
+    state->prev   = header->state;
+    header->state = state;
+
+    return 1;
+}
+
+u32 Heap_FRMHLoadState(Heap_Header *heap, u32 id) {
+    Heap_FRMHHeader *header = AddU32_inline(heap, sizeof(Heap_Header));
+    Heap_FRMHState *state   = header->state;
+
+    if (id != 0) {
+        while (state) {
+            if (state->id == id) {
+                break;
+            }
+            state = state->prev;
+        }
+    }
+
+    if (!state) {
+        return 0;
+    }
+
+    header->head  = state->head;
+    header->tail  = state->tail;
+    header->state = state->prev;
+
+    return 1;
+}
+
+u32 Heap_FRMHFreeEmpty(Heap_Header *heap) {
+    Heap_Header *header        = heap;
+    Heap_FRMHHeader *frmHeader = AddU32_inline(header, sizeof(Heap_Header));
+
+    if (0 < ((u32) header->endAddr - (u32) frmHeader->tail)) {
+        return 0;
+    }
+
+    frmHeader->tail = header->endAddr = frmHeader->head;
+
+    return ((u32) header->endAddr - (u32) heap);
 }

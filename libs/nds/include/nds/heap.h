@@ -53,3 +53,18 @@ typedef struct Heap_EXPHHeader_ {
     /* 12 */ u16 flags;
     /* 14 */
 } Heap_EXPHHeader;
+
+typedef struct Heap_FRMHState_ {
+    /* 00 */ u32 id;
+    /* 04 */ void *head;
+    /* 08 */ void *tail;
+    /* 0c */ struct Heap_FRMHState_ *prev;
+    /* 10 */
+} Heap_FRMHState;
+
+typedef struct Heap_FRMHHeader_ {
+    /* 00 */ void *head;
+    /* 04 */ void *tail;
+    /* 08 */ Heap_FRMHState *state;
+    /* 0c */
+} Heap_FRMHHeader;
