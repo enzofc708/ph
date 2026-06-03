@@ -9,6 +9,9 @@
         data |= newVal << st;             \
     };
 
+static Heap_LinkedList gHeapList;
+static u32 gHeapListInitialized = 0;
+
 static inline u32 Diff_Ptr_inline(const void *start, const void *end) {
     return end - start;
 }
@@ -89,7 +92,7 @@ Heap_Header *Heap_EXPHInit(void *start, void *end, u16 flag) {
     Heap_Header *header         = start;
     Heap_EXPHHeader *EXPHHeader = (void *) ((u32) header + sizeof(Heap_Header));
 
-    func_0201776c(header, 'EXPH', (void *) ((u32) EXPHHeader + sizeof(Heap_EXPHHeader)), end, flag);
+    Heap_InitHeader(header, 'EXPH', (void *) ((u32) EXPHHeader + sizeof(Heap_EXPHHeader)), end, flag);
 
     EXPHHeader->id    = 0;
     EXPHHeader->flags = 0;
@@ -257,7 +260,7 @@ Heap_Header *Heap_EXPHCreate(void *startAddress, u32 size, u16 optFlag) {
 }
 
 void Heap_EXPHDestroy(Heap_Header *heap) {
-    func_020177c8(heap);
+    Heap_Destroy(heap);
 }
 
 void *Heap_EXPHNew(Heap_Header *heap, u32 size, int alignment) {
@@ -401,7 +404,7 @@ Heap_Header *Heap_FRMHInit(void *startAddress, void *endAddress, u16 optFlag) {
     Heap_Header *header        = startAddress;
     Heap_FRMHHeader *frmHeader = (void *) header + sizeof(Heap_Header);
 
-    func_0201776c(header, 'FRMH', (void *) frmHeader + sizeof(Heap_FRMHHeader), endAddress, optFlag);
+    Heap_InitHeader(header, 'FRMH', (void *) frmHeader + sizeof(Heap_FRMHHeader), endAddress, optFlag);
 
     frmHeader->head  = header->startAddr;
     frmHeader->tail  = header->endAddr;
@@ -471,7 +474,7 @@ Heap_Header *Heap_FRMHCreate(void *startAddress, u32 size, u16 optFlag) {
 }
 
 void Heap_FRMHDestroy(Heap_Header *heap) {
-    func_020177c8(heap);
+    Heap_Destroy(heap);
 }
 
 void *Heap_FRMHNew(Heap_Header *heap, u32 size, int alignment) {
@@ -573,4 +576,151 @@ u32 Heap_FRMHFreeEmpty(Heap_Header *heap) {
     frmHeader->tail = header->endAddr = frmHeader->head;
 
     return ((u32) header->endAddr - (u32) heap);
+}
+
+Heap_Header *Heap_FindBlockInternal(Heap_LinkedList *list, const void *block) {
+    Heap_Header *header = NULL;
+    while (NULL != (header = Heap_ListNext(list, header))) {
+        if ((u32) (header->startAddr) <= (u32) (block) && (u32) (block) < (u32) (header->endAddr)) {
+            Heap_Header *subHeader = Heap_FindBlockInternal(&header->children, block);
+            if (subHeader) {
+                return subHeader;
+            }
+            return header;
+        }
+    }
+    return NULL;
+}
+
+Heap_LinkedList *Heap_FindParentHeap(Heap_Header *header) {
+    Heap_LinkedList *list = &gHeapList;
+    Heap_Header *res      = Heap_FindBlockInternal(&gHeapList, header);
+    if (res) {
+        list = &res->children;
+    }
+
+    return list;
+}
+
+void Heap_InitHeader(Heap_Header *header, u32 stamp, void *heapStart, void *heapEnd, u16 optFlag) {
+    header->stamp     = stamp;
+    header->startAddr = heapStart;
+    header->endAddr   = heapEnd;
+    header->flags     = 0;
+    SetBit(header->flags, 0, 8, optFlag);
+
+    Heap_InitList(&header->children, offsetof(Heap_Header, link));
+
+    if (!gHeapListInitialized) {
+        Heap_InitList(&gHeapList, offsetof(Heap_Header, link));
+        gHeapListInitialized = 1;
+    }
+
+    Heap_ListAppend(Heap_FindParentHeap(header), header);
+}
+
+void Heap_Destroy(Heap_Header *header) {
+    Heap_ListRemove(Heap_FindParentHeap(header), header);
+}
+
+Heap_Header *Heap_FindBlock(const void *memBlock) {
+    return Heap_FindBlockInternal(&gHeapList, memBlock);
+}
+
+void Heap_InitList(Heap_LinkedList *list, u16 offset) {
+    list->head        = NULL;
+    list->tail        = NULL;
+    list->numElements = 0;
+    list->offset      = offset;
+}
+
+void Heap_ListSetFirst(Heap_LinkedList *list, void *object) {
+    Heap_LinkedObject *link;
+
+    link       = ((Heap_LinkedObject *) ((u32) (object) + list->offset));
+    link->next = NULL;
+    link->prev = NULL;
+    list->head = object;
+    list->tail = object;
+    list->numElements++;
+}
+
+void Heap_ListAppend(Heap_LinkedList *list, void *object) {
+    if (list->head == NULL) {
+        Heap_ListSetFirst(list, object);
+    } else {
+        Heap_LinkedObject *link = ((Heap_LinkedObject *) ((u32) (object) + list->offset));
+
+        link->prev = list->tail;
+        link->next = NULL;
+
+        ((Heap_LinkedObject *) ((u32) (list->tail) + list->offset))->next = object;
+        list->tail                                                        = object;
+        list->numElements++;
+    }
+}
+
+void Heap_ListPrepend(Heap_LinkedList *list, void *object) {
+    if (list->head == NULL) {
+        Heap_ListSetFirst(list, object);
+    } else {
+        Heap_LinkedObject *link = ((Heap_LinkedObject *) ((u32) (object) + list->offset));
+        link->prev              = NULL;
+        link->next              = list->head;
+        ((Heap_LinkedObject *) ((u32) (list->head) + list->offset))->prev = object;
+        list->head                                                        = object;
+        list->numElements++;
+    }
+}
+
+void Heap_ListInsertBefore(Heap_LinkedList *list, void *target, void *object) {
+    if (target == NULL) {
+        Heap_ListAppend(list, object);
+    } else if (target == list->head) {
+        Heap_ListPrepend(list, object);
+    } else {
+        Heap_LinkedObject *link    = ((Heap_LinkedObject *) ((u32) (object) + list->offset));
+        void *prevObj              = ((Heap_LinkedObject *) ((u32) (target) + list->offset))->prev;
+        Heap_LinkedObject *prevLnk = ((Heap_LinkedObject *) ((u32) (prevObj) + list->offset));
+
+        link->prev                                                    = prevObj;
+        link->next                                                    = target;
+        prevLnk->next                                                 = object;
+        ((Heap_LinkedObject *) ((u32) (target) + list->offset))->prev = object;
+        list->numElements++;
+    }
+}
+
+void Heap_ListRemove(Heap_LinkedList *list, void *object) {
+    Heap_LinkedObject *link;
+
+    link = ((Heap_LinkedObject *) ((u32) (object) + list->offset));
+
+    if (link->prev == NULL) {
+        list->head = link->next;
+    } else {
+        ((Heap_LinkedObject *) ((u32) (link->prev) + list->offset))->next = link->next;
+    }
+    if (link->next == NULL) {
+        list->tail = link->prev;
+    } else {
+        ((Heap_LinkedObject *) ((u32) (link->next) + list->offset))->prev = link->prev;
+    }
+    link->prev = NULL;
+    link->next = NULL;
+    list->numElements--;
+}
+
+void *Heap_ListNext(Heap_LinkedList *list, void *object) {
+    if (object == NULL) {
+        return list->head;
+    }
+    return ((Heap_LinkedObject *) ((u32) (object) + list->offset))->next;
+}
+
+void *Heap_ListPrev(Heap_LinkedList *list, void *object) {
+    if (object == NULL) {
+        return list->tail;
+    }
+    return ((Heap_LinkedObject *) ((u32) (object) + list->offset))->prev;
 }

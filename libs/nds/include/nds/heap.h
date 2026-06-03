@@ -68,3 +68,10 @@ typedef struct Heap_FRMHHeader_ {
     /* 08 */ Heap_FRMHState *state;
     /* 0c */
 } Heap_FRMHHeader;
+
+void Heap_InitHeader(Heap_Header *pHeapHd, u32 signature, void *heapStart, void *heapEnd, u16 optFlag);
+void Heap_Destroy(Heap_Header *pHeapHd);
+void Heap_InitList(Heap_LinkedList *list, u16 offset);
+void Heap_ListAppend(Heap_LinkedList *list, void *object);
+void Heap_ListRemove(Heap_LinkedList *list, void *object);
+void *Heap_ListNext(Heap_LinkedList *list, void *object);
