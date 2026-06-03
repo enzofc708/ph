@@ -754,11 +754,11 @@ Heap_Header *Heap_UNTHCreate(void *startAddress, u32 heapSize, u32 memBlockSize,
 
     heapEnd = AddU32_inline(heapStart, elementNum * memBlockSize);
     Heap_InitHeader(header, 'UNTH', heapStart, heapEnd, optFlag);
-    pUntHeapHd->mbFreeList.head = heapStart;
-    pUntHeapHd->mBlkSize        = memBlockSize;
+    pUntHeapHd->freeBlocks.head = heapStart;
+    pUntHeapHd->blockSize       = memBlockSize;
 
     {
-        Heap_UNTHBlockHeader *pMBlkHd = pUntHeapHd->mbFreeList.head;
+        Heap_UNTHBlockHeader *pMBlkHd = pUntHeapHd->freeBlocks.head;
         int i;
 
         for (i = 0; i < elementNum - 1; ++i, pMBlkHd = pMBlkHd->next) {

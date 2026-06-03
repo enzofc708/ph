@@ -1,6 +1,10 @@
 #include "global.h"
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Heap_Region_ {
     /* 00 */ void *start;
     /* 04 */ void *end;
@@ -69,14 +73,6 @@ typedef struct Heap_FRMHHeader_ {
     /* 0c */
 } Heap_FRMHHeader;
 
-void Heap_InitHeader(Heap_Header *pHeapHd, u32 signature, void *heapStart, void *heapEnd, u16 optFlag);
-void Heap_DestroyInternal(Heap_Header *pHeapHd);
-void Heap_InitList(Heap_LinkedList *list, u16 offset);
-void Heap_ListAppend(Heap_LinkedList *list, void *object);
-void Heap_ListRemove(Heap_LinkedList *list, void *object);
-void *Heap_ListNext(Heap_LinkedList *list, void *object);
-
-// rename
 typedef struct Heap_UNTHBlockHeader_ {
     /* 00 */ struct Heap_UNTHBlockHeader_ *next;
     /* 04 */
@@ -88,7 +84,21 @@ typedef struct Heap_UNTHBlockList_ {
 } Heap_UNTHBlockList;
 
 typedef struct Heap_UNTHHeader_ {
-    /* 00 */ Heap_UNTHBlockList mbFreeList;
-    /* 04 */ u32 mBlkSize;
+    /* 00 */ Heap_UNTHBlockList freeBlocks;
+    /* 04 */ u32 blockSize;
     /* 08 */
 } Heap_UNTHHeader;
+
+// function declarations
+void *Heap_EXPHNew(Heap_Header *heap, u32 size, int alignment);
+void Heap_EXPHFreeBlock(Heap_Header *heap, void *memBlock);
+void Heap_InitHeader(Heap_Header *pHeapHd, u32 signature, void *heapStart, void *heapEnd, u16 optFlag);
+void Heap_DestroyInternal(Heap_Header *pHeapHd);
+void Heap_InitList(Heap_LinkedList *list, u16 offset);
+void Heap_ListAppend(Heap_LinkedList *list, void *object);
+void Heap_ListRemove(Heap_LinkedList *list, void *object);
+void *Heap_ListNext(Heap_LinkedList *list, void *object);
+
+#ifdef __cplusplus
+}
+#endif
