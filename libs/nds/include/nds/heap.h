@@ -70,8 +70,25 @@ typedef struct Heap_FRMHHeader_ {
 } Heap_FRMHHeader;
 
 void Heap_InitHeader(Heap_Header *pHeapHd, u32 signature, void *heapStart, void *heapEnd, u16 optFlag);
-void Heap_Destroy(Heap_Header *pHeapHd);
+void Heap_DestroyInternal(Heap_Header *pHeapHd);
 void Heap_InitList(Heap_LinkedList *list, u16 offset);
 void Heap_ListAppend(Heap_LinkedList *list, void *object);
 void Heap_ListRemove(Heap_LinkedList *list, void *object);
 void *Heap_ListNext(Heap_LinkedList *list, void *object);
+
+// rename
+typedef struct Heap_UNTHBlockHeader_ {
+    /* 00 */ struct Heap_UNTHBlockHeader_ *next;
+    /* 04 */
+} Heap_UNTHBlockHeader;
+
+typedef struct Heap_UNTHBlockList_ {
+    /* 00 */ Heap_UNTHBlockHeader *head;
+    /* 04 */
+} Heap_UNTHBlockList;
+
+typedef struct Heap_UNTHHeader_ {
+    /* 00 */ Heap_UNTHBlockList mbFreeList;
+    /* 04 */ u32 mBlkSize;
+    /* 08 */
+} Heap_UNTHHeader;

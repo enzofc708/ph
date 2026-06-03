@@ -260,7 +260,7 @@ Heap_Header *Heap_EXPHCreate(void *startAddress, u32 size, u16 optFlag) {
 }
 
 void Heap_EXPHDestroy(Heap_Header *heap) {
-    Heap_Destroy(heap);
+    Heap_DestroyInternal(heap);
 }
 
 void *Heap_EXPHNew(Heap_Header *heap, u32 size, int alignment) {
@@ -474,7 +474,7 @@ Heap_Header *Heap_FRMHCreate(void *startAddress, u32 size, u16 optFlag) {
 }
 
 void Heap_FRMHDestroy(Heap_Header *heap) {
-    Heap_Destroy(heap);
+    Heap_DestroyInternal(heap);
 }
 
 void *Heap_FRMHNew(Heap_Header *heap, u32 size, int alignment) {
@@ -619,7 +619,7 @@ void Heap_InitHeader(Heap_Header *header, u32 stamp, void *heapStart, void *heap
     Heap_ListAppend(Heap_FindParentHeap(header), header);
 }
 
-void Heap_Destroy(Heap_Header *header) {
+void Heap_DestroyInternal(Heap_Header *header) {
     Heap_ListRemove(Heap_FindParentHeap(header), header);
 }
 
@@ -723,4 +723,59 @@ void *Heap_ListPrev(Heap_LinkedList *list, void *object) {
         return list->tail;
     }
     return ((Heap_LinkedObject *) ((u32) (object) + list->offset))->prev;
+}
+
+Heap_Header *Heap_UNTHCreate(void *startAddress, u32 heapSize, u32 memBlockSize, int alignment, u16 optFlag) {
+    Heap_Header *header;
+    void *heapEnd;
+    Heap_UNTHHeader *pUntHeapHd;
+    void *heapStart;
+    u32 elementNum;
+
+    header  = (void *) ((u32) startAddress + 3 & ~3);
+    heapEnd = (void *) ((u32) AddU32_inline(startAddress, heapSize) & ~3);
+
+    if ((const u8 *) header - (const u8 *) heapEnd > 0) {
+        return 0;
+    }
+
+    memBlockSize = memBlockSize + (alignment - 1) & ~(alignment - 1);
+    pUntHeapHd   = (void *) (sizeof(Heap_Header) + (u32) header);
+    heapStart    = (void *) (((u32) AddU32_inline(pUntHeapHd, sizeof(Heap_UNTHHeader)) + (alignment - 1)) & ~(alignment - 1));
+
+    if ((u8 *) heapStart - (u8 *) heapEnd > 0) {
+        return 0;
+    }
+
+    elementNum = (heapEnd - heapStart) / memBlockSize;
+    if (elementNum == 0) {
+        return 0;
+    }
+
+    heapEnd = AddU32_inline(heapStart, elementNum * memBlockSize);
+    Heap_InitHeader(header, 'UNTH', heapStart, heapEnd, optFlag);
+    pUntHeapHd->mbFreeList.head = heapStart;
+    pUntHeapHd->mBlkSize        = memBlockSize;
+
+    {
+        Heap_UNTHBlockHeader *pMBlkHd = pUntHeapHd->mbFreeList.head;
+        int i;
+
+        for (i = 0; i < elementNum - 1; ++i, pMBlkHd = pMBlkHd->next) {
+            pMBlkHd->next = AddU32_inline(pMBlkHd, memBlockSize);
+        }
+
+        pMBlkHd->next = NULL;
+    }
+
+    return header;
+}
+
+void Heap_Destroy(Heap_Header *heap) {
+    Heap_DestroyInternal(heap);
+}
+
+u32 Heap_UNTHSize(u32 memBlockSize, u32 memBlockNum, int alignment) {
+    return sizeof(Heap_Header) + sizeof(Heap_UNTHHeader) + (alignment - 4) +
+           memBlockNum * (((memBlockSize) + (alignment - 1)) & ~(alignment - 1));
 }
