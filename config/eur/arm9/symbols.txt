@@ -3014,8 +3014,8 @@ data_0205ada8 kind:bss addr:0x0205ada8
 data_0205adac kind:bss addr:0x0205adac
 data_0205adc0 kind:bss addr:0x0205adc0
 data_0205ade0 kind:bss addr:0x0205ade0
-gHeapListInitialized kind:bss addr:0x0205ade4
-gHeapList kind:bss addr:0x0205ade8
+gHeapListInitialized kind:bss addr:0x0205ade4 local
+gHeapList kind:bss addr:0x0205ade8 local
 data_0205adf4 kind:bss addr:0x0205adf4
 data_0205ae08 kind:bss addr:0x0205ae08
 data_0205db08 kind:bss addr:0x0205db08
